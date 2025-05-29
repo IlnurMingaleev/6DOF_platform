@@ -7,16 +7,26 @@ from inv_kinematics import inv_kinematics as ik
 import numpy as np
 
 class StewartPlatform:
+
     def __init__(self, path, joint_indices, actuator_indices, design_variable) -> None:
+        self.robotId = None
         self.path = path
         self.joint_indices = joint_indices
         self.actuator_indices = actuator_indices
         self.design_variable = design_variable
         self.prev_target = np.zeros(len(actuator_indices))
+        self.current_pose = np.zeros(6)  # [pitch, roll, yaw, sway, surge, heave]
+        self.sine_active = False
+        self.sine_params = None
+        self.sine_start_time = None
+        self.sim_env_ready = False
+        self.set_env()
 
     def cls(self):
         os.system('cls')
     def set_env(self):
+        if self.sim_env_ready:
+            return
         physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
         # physicsClient = p.connect(p.DIRECT)#or p.DIRECT for non-graphical version
         p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
@@ -47,6 +57,7 @@ class StewartPlatform:
             joint_name = joint_info[1].decode("utf-8")
             self.Ind[joint_info[0]]=joint_name
             # p.changeVisualShape(self.robotId, i, rgbaColor=[1,0,0,1])
+        self.sim_env_ready = True
         return
 
     def set_constraints(self):
@@ -127,6 +138,7 @@ class StewartPlatform:
                                         controlMode = p.POSITION_CONTROL, 
                                         targetPositions = np.zeros(len(self.actuator_indices)), 
                                         forces=self.max_force*np.ones(len(self.actuator_indices)))
+        self.current_pose = np.zeros(6)
         return
        
     def start_simmulation(self, data, simulation=False, flag = True):
@@ -184,4 +196,91 @@ class StewartPlatform:
         if simulation:
             p.stopStateLogging(logging_id)
         p.disconnect()
+        return
+
+    # --- API: Set pose directly ---
+    def set_pose(self, pitch, roll, yaw, sway, surge, heave, duration=1.0):
+        """
+        Move the platform to the given pose (degrees, mm) over the specified duration.
+        pitch, roll, yaw: degrees
+        sway, surge, heave: mm
+        """
+        self.set_env()
+        self.set_constraints()
+        self.init_stewart(flag=False)
+        translation = np.array([sway, surge, heave]) / 1000.0  # mm to meters
+        rotation = np.array([pitch, roll, yaw])
+        l = self.clf.solve(translation, rotation)
+        dl = l - self.l
+        self.linear_actuator(dl, duration)
+        self.current_pose = np.array([pitch, roll, yaw, sway, surge, heave])
+        return
+
+    # --- API: Get current pose ---
+    def get_pose(self):
+        """
+        Return the current pose as [pitch, roll, yaw, sway, surge, heave].
+        """
+        return self.current_pose.tolist()
+
+    # --- API: Run sine wave on each DOF ---
+    def run_sine(self, amplitudes, frequencies, phases, duration=5.0, dt=0.02):
+        """
+        amplitudes: [pitch, roll, yaw, sway, surge, heave] (deg or mm)
+        frequencies: [Hz] for each DOF
+        phases: [deg] for each DOF
+        duration: total time to run
+        dt: timestep
+        """
+        self.set_env()
+        self.set_constraints()
+        self.init_stewart(flag=False)
+        t0 = time.time()
+        t = 0.0
+        while t < duration:
+            pose = []
+            for i in range(6):
+                # phase in radians
+                phase_rad = np.deg2rad(phases[i])
+                value = amplitudes[i] * np.sin(2 * np.pi * frequencies[i] * t + phase_rad)
+                pose.append(value)
+            # pose: [pitch, roll, yaw, sway, surge, heave]
+            self.set_pose(*pose, duration=dt)
+            t = time.time() - t0
+        return
+
+    # --- API: Execute command dict (single-step, sine, etc.) ---
+    def execute_command(self, command):
+        """
+        command: dict with keys 'type' (single, sine), and relevant params
+        Example for single-step:
+            {'type': 'single', 'pose': [pitch, roll, yaw, sway, surge, heave], 'duration': 1.0}
+        Example for sine:
+            {'type': 'sine', 'amplitudes': [...], 'frequencies': [...], 'phases': [...], 'duration': 5.0}
+        """
+        if command['type'] == 'single':
+            self.set_pose(*command['pose'], duration=command.get('duration', 1.0))
+        elif command['type'] == 'sine':
+            self.run_sine(command['amplitudes'], command['frequencies'], command['phases'], duration=command.get('duration', 5.0))
+        elif command['type'] == 'reset':
+            self.reset_position()
+        else:
+            raise ValueError(f"Unknown command type: {command['type']}")
+
+    # --- Simulation loop for continuous update (for future extension) ---
+    def simulation_loop(self, update_fn, duration=10.0, dt=0.02):
+        """
+        update_fn: function that returns [pitch, roll, yaw, sway, surge, heave] at each timestep
+        duration: total time to run
+        dt: timestep
+        """
+        self.set_env()
+        self.set_constraints()
+        self.init_stewart(flag=False)
+        t0 = time.time()
+        t = 0.0
+        while t < duration:
+            pose = update_fn(t)
+            self.set_pose(*pose, duration=dt)
+            t = time.time() - t0
         return

@@ -1,0 +1,1191 @@
+NV: MT20241002
+
+Catalogue
+1
+
+Definition of Motion Coordinate System .............................................................................. 1
+
+1.1
+
+6DOF Motion Platform Overview ............................................................................................................. 1
+
+1.2
+
+Definition of the Motion Coordinate System ............................................................................................ 2
+
+2
+
+Software Overview ................................................................................................................ 3
+
+2.1
+
+Software Composition ............................................................................................................................... 3
+
+2.2
+
+Basic Software Configuration ................................................................................................................... 3
+
+3
+
+Communication Protocols...................................................................................................... 5
+
+3.1
+
+Overview ................................................................................................................................................... 5
+
+3.2
+
+Communication Establishment .................................................................................................................. 5
+
+3.3
+
+Data Frequency.......................................................................................................................................... 5
+
+4
+
+Motion Controller .................................................................................................................. 6
+
+4.1
+
+System State Machine ............................................................................................................................... 6
+
+4.2
+
+Communication protocols (data interaction) ............................................................................................. 8
+
+5
+
+Motion Platform Monitoring Software ................................................................................ 12
+
+5.1
+
+Preparation before Using the Monitoring Software................................................................................. 12
+
+5.2
+
+Analog Simulation Data Transfer Software ............................................................................................. 13
+
+1
+
+Definition of Motion Coordinate System
+
+1.1 6DOF Motion Platform Overview
+The 6DOF motion platform is a parallel motion mechanism, which realizes the platform's spatial 6DOF motions
+(pitch, roll, yaw, sway, surge, heave) through the expansion and contraction of the six servo-electric cylinders, i.e.,
+the translational motion in the X, Y and Z directions, the rotational motion around the X, Y and Z axes, as well as
+the composite motions of these degrees of freedom. The purpose of simulating various spatial motion postures
+within the performance envelope is achieved by composite motion.
+The coordinate system is shown below:
+
+Figure 1 Schematic diagram of the orientation of the motion platform
+
+1 /18
+
+1.2 Definition of the Motion Coordinate System
+The motion platform is based on the right-angle coordinate system, realizing 6dof in the X, Y, Z axes: pitch, roll,
+yaw, sway, surge, and heave, following the right-hand spiral law (thumb pointing to the positive direction of the
+coordinate axis, and four fingers pointing to the direction of the positive direction of rotation), which will be
+explained in detail in the following table.
+Name of DOF
+
+Description
+
+Pitch
+
+Rotational motion around the X-axis can also be referred to as X-turning.
+
+Roll
+
+Rotational motion around the Y-axis can also be referred to as Y-turning
+
+Yaw
+
+Rotational motion around the Z-axis can also be referred to as Z-turning.
+
+Sway
+
+Translation in the direction of the X-axis can also be referred to as X-translation.
+
+Surge
+
+Translation in the direction of the Y-axis can also be referred to as Y-translation.
+
+Heave
+
+Translation in the direction of the Z-axis can also be referred to as Z-translation.
+Table 1 Definition of degrees of freedom
+
+2 /18
+
+2
+
+Software Overview
+
+2.1 Software Composition
+In order to realize the motion control of the 6DOF motion platform, the motion platform needs the support of a
+motion controller as well as motion platform monitoring software.
+Name of software
+
+Function description
+
+Installation Environment
+
+Lower computer motion control software
+
+Control the movement of the 6DOF
+
+Motion Controller
+
+PC motioncontrol software/monitoring
+software
+
+Realize the control and status monitoring of the
+platform's motion posture through data exchange
+
+User’s computer
+
+Table 2 Software Support
+
+2.2 Basic Software Configuration
+The basic configuration of the conventional control program for 6DOF motion platform consists of a master
+computer, a motion controller, and a 6DOF motion platform. The master computer and motion controller are
+connected by Ethernet.The motion platform monitoring software is installed on the user's computer, and with the
+help of real-time communication over Ethernet, the user inputs the motion posture data into the motion platform
+monitoring software, and the motion controller receives the data and controls the 6DOF motion platform to realize
+the corresponding motion posture. At the same time, the motion controller will feedback the current posture data
+and other information of the 6DOF motion platform to the master computer in real time, and the user can view the
+current motion of the platform in the motion platform monitoring software.
+
+Figure 2 Basic Configuration Schematic for Conventional Control Solutions
+
+In order to realize the purpose of simultaneous control of multiple six-degree-of-freedom motion platforms in some
+projects, an industrial router can be added to the communication network, and different communication IP addresses
+can be set for each motion controller, so as to realize a master computer controlling multiple six-degree-of-freedom
+motion platforms, as shown in the figure below.
+
+3 /18
+
+Figure 3 Basic Configuration Diagram of Multi Motion Platform Control Solution
+
+4 /18
+
+3
+
+Communication Protocols
+
+3.1 Overview
+UDP (User Datagram Protocol) provides a simple datagram-based process-to-process communication
+mechanism.UDP provides a distinction between ports when communicating to multiple applications on a single
+application.When communicating using the UDP protocol, each UDP message, in addition to the data to be sent,
+contains a destination port number and a source port number, allowing the message to travel accurately to the
+receiver.
+UDP uses the underlying Internet Protocol (IP), does not use acknowledgments to ensure message arrival, does not
+sort incoming messages, and does not require feedback, allowing for a free and unimpeded rate of information flow
+between machines.
+
+3.2 Communication Establishment
+To use UDP communication, users need to assign IP and network port to the device. The default setting of IP of
+user's computer side is 192.168.0.131 and the network port is 10000, and the IP of the motion controller is
+192.168.0.125 and the network port is 5000, and the communication address is not fixed, so the user can modify it
+according to the need.
+Location
+
+IP address (default)
+
+Network port
+
+User computer
+
+192.168.0.131
+
+10000
+
+Motion Controller
+
+192.168.0.125
+
+5000
+
+Table 3 User computer and motion controller addresses
+
+3.3 Data Frequency
+In order to make the motion platform move continuously and smoothly, the communication frequency is set to 100
+Hz. For safety reasons, if the data delay between communications exceeds a certain time, the motion controller will
+generate a timeout fault, and the communication will be disconnected, and it will no longer receive the data sent by
+the motion platform monitoring software.
+
+5 /18
+
+4
+
+Motion Controller
+
+The motion controller parses the control command data sent by the motion platform monitoring software, analyzes
+and calculates the data through a series of kinematic control algorithms inside the controller, and successfully parses
+the processed motion posture into the executable data of the six-degree-of-freedom motion platform, so as to enable
+the motion platform to complete the corresponding actions. In order to realize the control process, different stages
+of the motion platform in the execution process are divided into multiple system states.
+
+4.1 System State Machine
+According to the motion control requirements, the motion behavior of the six-degree-of-freedom motion platform
+is divided into multiple system states, and the motion controller drives the six-degree-of-freedom motion platform
+into different states in the form of state machines. Before the motion platform executes the motion command, it
+needs to go through the state process of system initialization, searching for the bottom, and rising of the bottom
+position to the neutral position, and after correctly completing these states, the motion platform enters the normal
+motion state. After these states are completed correctly, the motion platform enters the normal motion state. When
+the motion platform is in the neutral state, the motion posture data sent by the motion platform monitoring software
+can take effect. The following table shows the common system states and descriptions.
+System status
+
+Description
+
+Finding the bottom
+
+The motion platform runs towards the bottom of the movement pattern.
+
+Bottom rises to middle
+
+The movement of the motion platform in the bottom position towards the middle of the
+movement pattern, which is the basis for the subsequent movement according to the
+posture data.
+
+Follow-up execution
+
+In this state the motion platform can move in real time according to user commands.
+
+Command execution
+Set/ Modify motion middle point
+
+In this state, the motion platform automatically runs to the specified posture or performs
+continuous periodic motion according to the final posture data sent by the motion
+platform monitoring software.
+The motion platform enters this state when it modifies the middle point according to the
+command.
+
+Script execution
+
+In this state, the motion platform runs along with the internally stored script data.
+
+From the middle to the bottom
+
+In the middle of the movement pattern toward to the bottom.
+
+Return to the middle
+
+Running to middle position from other kinematic postures.
+
+Manual mode
+Emergency stops
+System initialization completed
+Driver error
+
+In this state, the motion platform monitoring software can control one or more motorized
+cylinders on the motion platform.
+In this state, the motion platform stops moving immediately and does not act accordingly
+to the command data sent by the motion platform monitoring software.
+This state indicates that the parameters of the motion platform are initialized, the
+communication connection is completed, and the motion platform can operate normally.
+This state indicates that the drive is faulty and will not continue to move.
+Table 4 System status
+
+6 /18
+
+4.1.1
+
+Motion Platform Monitor Software Control Commands
+
+The motion platform monitoring software sends control commands, and the motion controller receives the control
+commands and executes the actions and state switches corresponding to the control commands. As shown in the
+table below, the state code is a decimal 8-bit unsigned integer data.
+Code
+
+Command
+
+Description
+
+2
+
+Back to the middle
+
+3
+
+Emergency stops
+
+4
+
+Finding the bottom initialization
+
+Motion platform for finding the bottom.
+
+5
+
+Manual mode
+
+The motion platform enters the manual mode state, which can control one or more
+electric cylinders individually, which is often used in debugging.
+
+6
+
+From the bottom to the middle
+
+The motion platform moves to the middle of the motion shape.
+
+7
+
+From the middle to the bottom
+
+The motion platform moves from its original middle to the bottom.
+
+9
+
+Follow-up execution
+
+The motion platform receives and executes the sent posture values in real time.
+
+11
+
+Command execution
+
+13
+
+Script execution
+
+When the motion platform receives this command, it will stop the current automatic
+running state and and then move to the middle of the motion shape.
+When the motion platform receives this command, it immediately stops the current
+action and does not process the subsequent commands.
+
+The user sends this command and posture data to the motion controller so that the
+platform can automatically run to a specified posture or perform continuous periodic
+motion.
+Allows the motion control platform to acquire posture data for motion from an
+internally stored data script, the script file has seven lines of data per line separated
+by commas (pitch, roll yaw, , sway, surge, heave, 0 (reserved)) unit: ° or mm.
+Table 5 Motion platform monitoring software control commands
+
+4.1.2
+
+Motion Controller Feedback States and Codes
+
+According to the current system status of the six-degree-of-freedom motion platform, the motion controller will
+feedback the status code corresponding to the current system status to the motion platform monitoring software. As
+shown in the table below, the status code is a decimal 8-bit unsigned integer data.
+Code
+
+System status
+
+Code
+
+System status
+
+0
+
+Bottom-finding initialization in progress
+
+9
+
+Script run completed
+
+1
+
+Bottom-finding initialization completed
+
+12
+
+In the process of falling from the middle to the
+bottom
+
+2
+
+In the process of rising from the bottom to the
+middle
+
+13
+
+Complete from the middle to the bottom
+
+3
+
+Complete from the bottom to the middle
+
+14
+
+In the process of returning to the middle
+
+4
+
+In follow-up execution
+
+32
+
+Manual mode
+
+5
+
+In command execution
+
+33
+
+Emergency stops
+
+8
+
+In script execution
+
+55
+
+System initialization completed
+
+Table 6 Feedback status and status codes
+
+7 /18
+
+The following figure shows the motion controller system state control flowchart:
+
+Figure 4 Motion controller system state control flowchart
+
+4.2 Communication protocols (data interaction)
+This communication protocol is developed to realize the data exchange between the motion platform monitoring
+software and the motion controller. The communication protocol is UDP protocol, and the communication protocol
+of user data is divided into two parts, i.e., the motion platform monitoring software sends control command data to
+the motion controller and the motion controller returns current status information to the motion platform monitoring
+software.
+
+4.2.1
+
+Motion Platform Monitoring Software Sends Data to Motion Controller
+
+The data sent by the motion platform monitoring software to the motion controller contains identification bits, status
+commands, file run numbers, motion cylinder selections, manual mode run speeds, motion posture data, and
+timestamps. The length of the data packet remains the same each time it is sent, and irrelevant data is set to zero.
+
+8 /18
+
+Data name
+
+Data type
+
+Data size
+
+Data function
+
+Identification Digit (ID)
+
+Char
+
+1byte
+
+Identity of the data packet, fixed value is 55.
+
+Status Command (Cmd)
+
+Char
+
+1byte
+
+SubState Command (SubCmd)
+
+Char
+
+1byte
+
+Script Execution File Number
+(FileNum)
+
+Char
+
+1byte
+
+Motion
+Cylinder
+(CyChoose)
+
+Char
+
+1byte
+
+Char
+
+1byte
+
+Short
+
+2byte
+
+Float
+
+24(4*6)byte
+
+Commanded Run Sine Amplitude
+(Amp)
+
+Float
+
+24(4*6)byte
+
+Command Run Sine Frequency
+(Fre)
+
+Float
+
+24(4*6)byte
+
+Command Run Sine Phase (Pha)
+
+Float
+
+24(4*6)byte
+
+Command Run Single Step Target
+Position (Pos)
+
+Float
+
+24(4*6)byte
+
+Command Run Single Step Run
+Speed (Spd)
+
+Float
+
+24(4*6)byte
+
+Reserved bit (Rev1)
+
+Float
+
+12(4*3)byte
+
+Reserve bits
+
+Reserved bit (Rev2)
+
+Float
+
+12(4*3)byte
+
+Reserve bits
+
+Timestamp (Time)
+
+U32
+
+4byte
+
+Data sending time.
+
+Selection
+
+Digital Output (DO)
+Manual mode operating speed
+(JogSpeed)
+Drag-On-Follow Mode Postures
+(DOFs)
+
+Sending status commands can change the running state of the
+motion controller, the commands refer to the feedback status
+and status code table.
+The sub-state instruction is only needed when the instruction
+is running
+1: Single-step execution 2: Sine wave execution 3: Buffer stop.
+When using script running, use the number to call the running
+data file saved in the internal memory.
+Only needed in manual mode, the 6 bits from low to high
+correspond to 6 electric cylinders, set 1 to select, set 0 not to
+select.
+This data is only used when the peripheral is connected, the 8
+bits from low to high bit correspond to 8 DOs, set 1 high level,
+set 0 low level.
+In manual mode, control the running speed of electric cylinder.
+Under the follow-up execution, the 6 groups of data directly
+control the state quantity (unit: ° or m) of the platform in 6dof.
+In commanded sinusoidal execution, 6 sets of data control the
+amplitude of sinusoidal motion of the platform in 6dof
+(unit: °/s and m/s)
+In the sinusoidal running state of automatic execution, 6
+groups of data control the sinusoidal motion frequency of the
+platform in six degrees
+of freedom (unit: Hz)
+In the sinusoidal running state of automatic execution, 6 sets
+of data control the sinusoidal motion phase of the platform i
+six degree of
+freedom (unit:°)
+In the single-step execution state of automatic execution, 6 sets
+of data control the moving target position of the platform in
+6dof (unit: ° or m)
+In the single-step execution state of automatic execution, 6
+groups of data control the movement speed of the platform in
+six degrees
+of freedom (unit: °/s or m/s)
+
+Table 7 Motion platform monitoring software sends data to motion controller
+
+Note: The posture data composition on the 6dof is in the order of pitch, roll, yaw, sway, surge, heave, that is, rotation
+in X, Y, and Z axes and displacement in X, Y, and Z axes, respectively. The data structure composition is shown
+below:
+
+9 /18
+
+typedef struct
+{
+unsigned char ID;
+
+// Identity of the data packet, fixed value is 55.
+
+unsigned char Cmd;
+
+// Status Command (Cmd)
+
+unsigned char SubCmd; // SubState Command (SubCmd)
+unsigned char FileNum; // Script Execution File Number (FileNum)
+unsigned char CyChoose;
+
+// Motion Cylinder Selection (CyChoose)
+
+unsigned char DO;
+
+// Digital Output (DO)
+
+short JogSpeed;
+
+// Manual mode operating speed (JogSpeed)
+
+float DOFs[6];
+
+// Drag-On-Follow Mode Postures (DOFs)
+
+float Amp[6];
+
+// Commanded Run Sine Amplitude (Amp)
+
+float Fre[6];
+
+// Command Run Sine Frequency (Fre)
+
+float Pha[6];
+
+// Command Run Sine Phase (Pha)
+
+float Pos[6];
+
+// Command Run Single Step Target Position (Pos)
+
+float Spd[6];
+
+// Command Run Single Step Run Speed (Spd)
+
+float Rev1[3];
+
+// Reserve bits
+
+float Rev2[3];
+
+// Reserve bits
+
+uint32_t Time；
+
+// Data sending time.
+
+}SCommand_Typedef
+
+4.2.2
+
+The lower computer returns the current status information to the upper computer
+
+The data returned by the lower computer to the upper computer includes identification bits, current status, digital
+input, status information, firm ware version and time stamp.
+Data name
+
+Data type
+
+Data size
+
+Data function
+
+Identification Digit (ID)
+
+Char
+
+1byte
+
+Identity of the data packet, fixed value is 55.
+
+Char
+
+1byte
+
+The current state of the system.
+
+Lower
+Status
+
+computer
+
+status
+
+DOF
+
+Digital input (DI)
+
+Char
+
+1byte
+
+This data is only used when the peripheral is connected. The 8
+bits from the low order to the high order correspond to the 8
+DIs respectively. If there is an input, it is set to 1, and if there
+is no input, it is set to 0.
+
+Reserved bit (Rev1)
+
+Float
+
+1byte
+
+Reserved bit, currently unused, defaults to 0.
+
+Actual posture (Postures)
+
+Float
+
+24(4*6)byte
+
+Error Code
+
+Float
+
+24(4*6)byte
+
+Motor code value (Motor Code)
+
+Float
+
+24(4*6)byte
+
+10 /18
+
+6 sets of data are returned to the real-time 6DOF posture data
+of the motion platform.
+When the electric cylinder driver reports an error, 6 groups of
+data records will return the error code corresponding to the
+electric cylinder.
+6 groups of data return the motor code values corresponding
+to the six electric cylinders.
+
+Motor torque (Tor)
+
+Float
+
+24(4*6)byte
+
+6 sets of data return the motor torque corresponding to the six
+electric cylinders.
+
+Lower computer firmware version
+(Version)
+
+U32
+
+4byte
+
+The firmware version number of the lower computer.
+
+Timestamp (Time)
+
+U32
+
+4byte
+
+Data sending time.
+
+Table 8 Status information returned by the lower computer to the upper computer
+
+Note: The 6 groups of posture data are pitch, roll, yaw, sway, surge, heave. The 6 groups of data of error code, motor
+code value and motor torque are 1~6 pieces of electric cylinder data respectively. The composition of the data
+structure is as follows:
+
+typedef struct
+{
+unsigned char ID;
+
+// Identification Digit (ID)
+
+unsigned char DOFStatus ;
+
+// Lower computer status DOF Status
+
+unsigned char DI;
+
+// Digital input (DI)
+
+unsigned char Rev1;
+float Attitudes[6];
+
+// Reserved bit (Rev1)
+// Actual posture (Postures)
+
+float ErrorCode[6];
+
+// Error Code
+
+float MotorCode[6];
+
+// Motor code value (Motor Code)
+
+float Tor[6];
+
+// Motor torque (Tor)
+
+uint32_t Version;
+uint32_t Time;
+
+// Lower computer firmware version (Version)
+// Timestamp (Time)
+
+}NetSend_Typedef
+
+11 /18
+
+5
+
+Motion Platform Monitoring Software
+
+In order to facilitate motion control and state monitoring of the motion platform, the motion platform monitoring
+software is utilized to send control commands, input the corresponding parameters according to the required motion
+posture, and the motion controller receives the control data and runs to the specified state, and at the same time
+monitors the current state of the motion platform according to the information data fed back by the motion controller
+motion control software.
+
+5.1 Preparation before Using the Monitoring Software
+Motion platform monitoring software is the entrance for users to operate the platform, and it undertakes the output
+function of motion control data of the whole platform. The requirements of the motion platform monitoring software
+for the user's computer are as follows:
+
+5.1.1
+
+Operating Environment
+
+CPU: INTEL Core I3;
+Memory: 4G DDR3 1333MHz;
+Storage space: 20 G;
+Graphics card: no requirement;
+System: Windows 10;
+Running environment: windows desktop runtime (need to install).
+The above are the basic requirements for running the motion platform monitoring software, any computer with
+higher configuration can run it. There is no requirement for the operating system, 32-bit or 64-bit systems are
+available.
+
+5.1.2
+
+Turn off Network Firewall
+
+Network firewalls may block communication data between the monitoring software and the platform. Before
+running the monitoring software, you need to close the network firewall in the windows system. The monitoring
+software needs to have a fixed IP address and directly connect to the platform when running, so there is no need to
+worry about the impact on the computer after closing the firewall.
+Basic steps to turn off the network firewall:
+Open "Control Panel" → click "System and Security" → click "Windows Firewall" → click "Turn Firewall On
+or Off" → select "Turn off Windows Firewall (not recommended)"
+
+5.1.3
+
+Set Static IP Address
+
+The monitoring software is based on UDP communication. Before using it, you need to assign a static IP to the
+user's computer. The default IP address is 192.168.0.131.
+Steps to modify the local network IP:
+12 /18
+
+Open "Control Panel" → click "Network and Sharing Middle" → left click "Change Adapter Settings" → right
+click "Local Area Connection" → click "Properties" → double click "Internet Protocol Version 4 (TCP/IPv4)"
+→ select "Use the following IP address (S)" → enter in "IP address (I): 192.168.0.131" → enter in "subnet mask":
+255.255.255.0 →click "OK".
+
+5.2 Analog Simulation Data Transfer Software
+The simulation data transfer software establishes a connection with the simulation model, accepts the simulation
+model data, and after processing, sends the commands to the platform so that the platform carries out the
+corresponding movements.
+
+5.2.1
+
+IP and Port Description
+
+Default IP for this software:
+Upper IP 192.168.0.131
+
+Port 10000;
+
+Lower IP 192.168.0.125
+
+Port 5000.
+
+5.2.2
+
+Analog Simulation Data Transfer Software Interface Description
+
+The simulation data transfer software is the main interface for users to intuitively understand the motion state of the
+platform and comprehensively display the real-time motion parameters of each part of the platform.
+The main interface is shown in the figure:
+
+Figure 5 Initial interface of motion platform monitoring software
+13 /18
+
+（1） Home button.
+（2） Single-step execution button: Press the button to enter the single-step execution interface.
+（3） Sine wave execution button: Press the button to enter the sine wave execution interface.
+（4） Script running button: Press the button to enter the script execution interface.
+（5） Chart button: press the button to enter the real-time chart interface.
+（6） Setting button: press the button to enter the setting interface, you can set the connection IP and port number.
+（7） Return to the bottom button: After pressing the button, the platform will run to the middle position first, and
+then return to the bottom position.
+（8） Return to the middle position button: After pressing the button, the platform will run to the middle position.
+（9） Rise to the middle position button: After pressing the button, the platform will rises from the bottom position
+to the middle position.
+（10） Posture real-time data window
+（11） Electric cylinder real-time data window
+（12） Version number window.
+（13） Pop-up window displaying the platform error code
+（14） Status bar, with the following states:
+●Initialized
+●Bottom position
+●Rising to the middle
+●Middle position already
+●Moving to the middle
+●Falling to the bottom
+●Moving on command
+●Moving according to the script
+●Manual mode
+●Emergency stop
+●System error
+●Lost connection
+
+5.2.3
+
+Basic Operation
+
+After the user opens the software, check the status column in the lower right corner, if it shows initialized, it means
+that the motion platform monitoring software communicates successfully with the motion controller; if the status
+shows unknown, it means that the motion platform monitoring software does not communicate successfully with
+the motion controller, and it is necessary to check the network cable connection or static IP.
+（1） Motion Posture Control
+Motion posture control includes three modes: single-step operation, sine wave execution and script execution, and
+all operations are executed when the platform is in the neutral position. The motion platform will limit the motion
+14 /18
+
+range of 6dof according to the engineering reality to ensure its stable, safe and efficient operation.
+Users need to adjust the platform to the neutral position through the motion platform monitoring software to execute
+single-step or sinusoidal motion. To switch between motion modes, the platform should be reset by clicking the
+“Return to Neutral” button. When ending the execution, also need to click the “return to middle” button first, when
+the platform status shows “has been in the middle”, then click the “return to the bottom” to drop to the bottom
+execution, when the platform status shows “has been to the middle”, then click the “return to the bottom” to drop
+to the bottom execution. When the platform status displays “at the bottom”, close the monitoring software.
+（2） Basic system status monitoring
+The motion platform monitoring software provides users with a convenient interface to view the current system
+status by displaying real-time posture, status bar, stroke and torque information fed return from the motion controller.
+
+5.2.4
+
+Motion Control Operating Instructions
+
+Motion control needs to be performed with the motion platform in the neutral position.
+（1） Single-step execution
+Single-step execution ensures that the platform is stationary after reaching the set posture. After setting the target
+position and speed through the monitoring software, the platform will move to the target position at the set speed
+and remain stationary. Single-step execution is based on the absolute position of the reference coordinate system,
+and when used continuously, the platform moves in absolute position according to the initial reference coordinate
+system.
+
+Figure 6 Single-step execution interface
+
+In the single-step execution parameter setting, the target position of pitch (x-axis rotation), roll (y-axis rotation) and
+15 /18
+
+yaw (z-axis rotation) is measured in degrees (°), and the speed is measured in degrees per second (°/s); The target
+position in the sway, surge and heave is in millimeters (mm), and the velocity is measured in millimeters per second
+(mm/s). After entering the posture value, click “Run” to confirm the execution.
+Note: The input value must be within the motion range of the motion platform, any input outside the range will
+cause the platform to run towards the limit boundary and will not execute the overrun value.
+（2） Sine wave execution
+In sine wave execution mode, the platform will execute dynamic sinusoidal motion. By setting the amplitude,
+frequency and phase parameters, the platform will smoothly accelerate to the predefined parameters and execute
+sinusoidal motion.
+
+Figure 7 Sine wave execution interface
+
+The unit of sine wave running posture is the same as single-step running, the unit of frequency is “Hz”, the unit of
+phase is “°”, the input value is not beyond the rated range of the motion platform, after completing the numerical
+input, please click “Run” to execute, If you want to stop, please click “Stop”, the motion platform will stop moving
+slowly.
+（3） Script execution
+Script running supports reading customized posture data files on the computer to realize the platform to execute a
+variety of irregular motions including sea wave spectrum, road spectrum and so on.
+
+16 /18
+
+Figure 8 Script execution interface
+
+After selecting the script file, adjust the angle and displacement scaling factor (default 1) in the parameter settings
+as required. If you want to loop the execution, please enable the loop function, and then click “Run”. To stop, click
+“Return to Middle”.
+Formatting requirements:
+Script Example.txt is a sample containing 7 columns of data, representing Pitch, Yaw, Yaw, Horizontal, Longitudinal,
+Vertical and Special Effects. The data are separated by commas, the first three columns are in degrees, the last three
+are in millimeters, and the last 1 column of data (special effects) is 0 when not in use.The data update interval is
+10ms, and if it is a one-second script, it corresponds to 100 rows of data per second, and so on.
+In the running state of the motion monitoring software, select “Script Motion” and click “Read and Run” to execute
+the script. The default scaling factor is 1, i.e., the script data is multiplied by this factor as the motion parameter of
+the platform.
+Script example:
+Data1
+
+Data2
+
+Data3
+
+Data4
+
+Data5
+
+Data6
+
+Data7
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0.109
+
+0
+
+0.11
+
+0
+
+0
+
+0.3456
+
+0
+
+0.218
+
+0
+
+0.22
+
+0
+
+0
+
+0.6912
+
+0
+
+0.327
+
+0
+
+0.33
+
+0
+
+0
+
+1.0368
+
+0
+
+0.654
+
+0
+
+0.66
+
+0
+
+0
+
+1.3824
+
+0
+
+17 /18
+
+0.545
+
+0
+
+0.55
+
+0
+
+0
+
+1.0368
+
+0
+
+0.327
+
+0
+
+0.33
+
+0
+
+0
+
+0.3456
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+Table 9 Script example
+
+（4） Data Monitoring
+After starting the running status, the homepage will display two interfaces: the left side is used to monitor the realtime data of the six posture values, and the right side displays the torque and stroke information of the six electric
+cylinders.
+By turning on the chart function, users can perform data monitoring tasks. In the running state, the waveform graph
+displays the posture data of the motion controller by default, and can choose to display single data such as velocity,
+acceleration, torque, and cylinder length information. Users can customize checking the right degree of freedom
+option (not selected by default) to observe the data corresponding to each degree of freedom.
+
+Figure 9 Data monitoring interface
+
+5.2.5
+
+Motion Platform Monitoring Software Notes
+
+（1） Please make sure that the necessary operating environment is installed before running the monitoring
+software: windows desktop runtime;
+（2） Please run the monitoring software as administrator;
+（3） If the system status is displayed as unknown, please check the network cable and IP address configuration;
+（4） It is prohibited to input parameter values that are out of the set range during operation.
+
+18 /18
+
+
